@@ -1,19 +1,37 @@
-import * as React from 'react';
-import './App.css';
+import * as React from "react";
+import { Container, Navbar, NavbarBrand } from "reactstrap";
+import { Route } from "react-router-dom";
 
-import logo from './logo.svg';
+import Home from "./components/home/Home";
+import Uploader from "./components/uploader/Uploader";
 
-class App extends React.Component {
+class App extends React.Component<{}, { isOpen: boolean }> {
+  constructor(props: any) {
+    super(props);
+
+    this.toggle = this.toggle.bind(this);
+    this.state = {
+      isOpen: false
+    };
+  }
+
+  toggle() {
+    this.setState({
+      isOpen: !this.state.isOpen
+    });
+  }
+
   public render() {
     return (
-      <div className="App">
-        <header className="App-header">
-          <img src={logo} className="App-logo" alt="logo" />
-          <h1 className="App-title">Welcome to React</h1>
-        </header>
-        <p className="App-intro">
-          To get started, edit <code>src/App.tsx</code> and save to reload.
-        </p>
+      <div>
+        <Navbar color="light" light={true} expand="md">
+          <Container>
+            <NavbarBrand href="/">samba-video-node</NavbarBrand>
+          </Container>
+        </Navbar>
+        
+        <Route exact path="/" component={Home} />
+        <Route path="/uploader" component={Uploader} />
       </div>
     );
   }
