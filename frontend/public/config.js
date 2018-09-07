@@ -1,0 +1,1 @@
+window["API"] = "//localhost:1337/api/"
