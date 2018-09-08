@@ -8,7 +8,7 @@ import { Video } from "./model/Video";
 import Watcher from "./components/watcher/Watcher";
 import Videos from "./components/videos/Videos";
 
-class App extends React.Component<{}, { loadingVideos: boolean, videos: Video[] }> {
+class App extends React.Component<{}, { loadingVideos: boolean | undefined, uploading: boolean, uploadingText: string, videos: Video[] }> {
   private servicesFactory: ServicesFactory = new ServicesFactory()
   private fileInput: HTMLInputElement | null
 
@@ -18,15 +18,46 @@ class App extends React.Component<{}, { loadingVideos: boolean, videos: Video[] 
 
     this.state = {
       videos: [],
-      loadingVideos: false
+      loadingVideos: false,
+      uploadingText: "Envie seu vídeo",
+      uploading: false
     }
 
     this.handleFileChange = this.handleFileChange.bind(this)
     this.handleOnClickUpload = this.handleOnClickUpload.bind(this)
   }
 
-  public handleFileChange(event: React.ChangeEvent<HTMLInputElement>): void {
-    console.log(event.target.files)
+  public async handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    if (event.target.files) {
+      let vds = this.servicesFactory.Instance(VideoService)
+      let data = new FormData()
+      data.append('file', event.target.files[0])
+      let video = await vds.upload(data, (progress: any) => this.setState({uploadingText : `Enviando... ${progress}% ${progress == 100 ? " - Aguardando AWS" : ""}`, uploading: true}))
+      if (video && video.status !== "error") {
+        this.setState({
+          videos: [
+            video,
+            ...this.state.videos
+          ],
+          uploadingText: "Envie seu vídeo",
+          uploading: false
+        }, () => {
+          let statusPolling = setInterval(() => {
+              vds.getVideoUrl(video.id).then(response => {
+                if (response && (response.status === "finished" || response.status === "error" || response.status === "failed" || response.status === "cancelled")) {
+                  clearInterval(statusPolling)
+                  let currStateVideos = this.state.videos
+                  currStateVideos = currStateVideos.filter(a => a.id != response.id)
+                  currStateVideos.unshift(response)
+                  this.setState({ videos: currStateVideos })
+                }
+              })
+            }, 1000)
+        })
+      } else {
+        alert(video.message)
+      }
+    }
   }
 
   public handleOnClickUpload() {
@@ -41,7 +72,7 @@ class App extends React.Component<{}, { loadingVideos: boolean, videos: Video[] 
       let videos = await vds.getVideos()
       this.setState({ videos: videos, loadingVideos: false })
     } catch (e) {
-
+      this.setState({ loadingVideos: undefined })
     }
   }
 
@@ -58,16 +89,17 @@ class App extends React.Component<{}, { loadingVideos: boolean, videos: Video[] 
             <Jumbotron className="mt-4">
               <h1>Bem vindo ao Samba-Video-Node</h1>
               <p>Faça o upload de seus videos em qualquer formato para enviar para seus amigos!</p>
-              <Button color="primary" onClick={this.handleOnClickUpload}>Envie seu vídeo</Button>
+              <Button color="primary" onClick={this.handleOnClickUpload} disabled={this.state.uploading}>{this.state.uploadingText}</Button>
               <Input type="file" name="file" id="file" innerRef={(ref) => this.fileInput = ref} onChange={this.handleFileChange} className="collapse" />
             </Jumbotron>
             <h5 className="mt-4">Lista de vídeos enviados</h5>
             <hr />
-            { this.state.loadingVideos && <Progress animated={true} color="info" value="100" /> }
-            <Videos videos={this.state.videos} />
+            {this.state.loadingVideos && <Progress animated={true} color="info" value="100" />}
+            {this.state.loadingVideos === undefined && <p>Ocorreu um erro não esperado ao carregar os vídeos</p>}
+            {this.state.videos.length > 0 && <Videos videos={this.state.videos} />}
           </Container>
         } />
-        <Route exact={true} path="/watch/:id" component={Watcher} />
+        <Route exact={true} path="/watch/:id" render={(props) => <Watcher {...props} vds={this.servicesFactory.Instance(VideoService)} ></Watcher>} />
       </div>
     );
   }

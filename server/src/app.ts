@@ -39,6 +39,7 @@ router.post('/api/upload', Body(), async (ctx: Koa.Context) => {
           input: `s3://${process.env.AWS_S3_BUCKET}/uploads/${files.file.name}`,
           outputs: [
             {
+              public: true,
               url: `http://s3-${process.env.AWS_REGION}.amazonaws.com/${process.env.AWS_S3_BUCKET}/decoded/${files.file.name}.mp4`,
               h264_profile: "high",
               label: files.file.name
@@ -47,8 +48,10 @@ router.post('/api/upload', Body(), async (ctx: Koa.Context) => {
         })
         if (encResult && encResult.data) {
           ctx.body = {
-            status: 'success',
-            key: encResult.data.id
+            id: encResult.data.id,
+            status: 'encoding',
+            url: `http://s3-${process.env.AWS_REGION}.amazonaws.com/${process.env.AWS_S3_BUCKET}/decoded/${files.file.name}.mp4`,
+            name: files.file.name
           }
         }
       } else {
@@ -72,18 +75,6 @@ router.post('/api/upload', Body(), async (ctx: Koa.Context) => {
   }
 })
 
-router.get('/api/encoding-status/:id', async (ctx: Koa.Context) => {
-  try {
-    let encResult = await encoder.Job.progress(ctx.params.id)
-    ctx.body = encResult ? { status: encResult.data.status } : { status: 'empty' }
-  } catch (e) {
-    ctx.body = {
-      status: 'error',
-      error: e
-    }
-  }
-})
-
 // @TODO - Adicionar DB
 router.get('/api/videos', async (ctx: Koa.Context) => {
   try {
@@ -93,6 +84,7 @@ router.get('/api/videos', async (ctx: Koa.Context) => {
       let videos = jobs.data.filter(item => item.job.output_media_files[0].label != null).map(item => {
         return {
           id: item.job.id,
+          status: item.job.state,
           name: item.job.output_media_files[0].label,
           url: item.job.output_media_files[0].url
         }
@@ -113,9 +105,11 @@ router.get('/api/video/:id', async (ctx: Koa.Context) => {
   try {
     if (ctx.params && ctx.params.id) {
       let encResult = await encoder.Job.details(ctx.params.id)
-
+      console.log(encResult.data)
       if (encResult)
         ctx.body = {
+          id: encResult.data.job.id,
+          status: encResult.data.job.state,
           name: encResult.data.job.output_media_files[0].label,
           url: encResult.data.job.output_media_files[0].url
         }

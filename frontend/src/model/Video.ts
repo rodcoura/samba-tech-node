@@ -3,4 +3,7 @@ export interface Video {
   name: string
   url: string
   status: string
+  message: string
+  progress: number
+  error: any
 }
