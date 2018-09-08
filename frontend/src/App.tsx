@@ -2,18 +2,20 @@ import * as React from "react";
 import { Container, Navbar, NavbarBrand, Jumbotron, Button, Input, Progress } from "reactstrap";
 import { Route } from "react-router-dom";
 
-import { ServicesFactory, InstanceLifeCicle } from "./services/ServicesFactory";
-import { VideoService } from "./services/VideoService";
-import { Video } from "./model/Video";
 import Watcher from "./components/watcher/Watcher";
 import Videos from "./components/videos/Videos";
 
-class App extends React.Component<{}, { loadingVideos: boolean | undefined, uploading: boolean, uploadingText: string, videos: Video[] }> {
+import { ServicesFactory, InstanceLifeCicle } from "./services/ServicesFactory";
+import { VideoService } from "./services/VideoService";
+import { AppComponentState } from "./interfaces/AppComponent";
+import { VIDEO_STATUS_ERROR, VIDEO_STATUS_MEANS_DONE } from "./consts/VideoStatus";
+
+class App extends React.Component<{}, AppComponentState> {
   private servicesFactory: ServicesFactory = new ServicesFactory()
   private fileInput: HTMLInputElement | null
 
   constructor(props: any) {
-    super(props);
+    super(props)
     this.servicesFactory.Register(VideoService, InstanceLifeCicle.Singleton)
 
     this.state = {
@@ -29,34 +31,37 @@ class App extends React.Component<{}, { loadingVideos: boolean | undefined, uplo
 
   public async handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     if (event.target.files) {
-      let vds = this.servicesFactory.Instance(VideoService)
-      let data = new FormData()
+      const vds = this.servicesFactory.Instance(VideoService)
+      const data = new FormData()
       data.append('file', event.target.files[0])
-      let video = await vds.upload(data, (progress: any) => this.setState({uploadingText : `Enviando... ${progress}% ${progress == 100 ? " - Aguardando AWS" : ""}`, uploading: true}))
-      if (video && video.status !== "error") {
+
+      const video = await vds.upload(data, (progress: any) => { 
+        this.setState({ 
+          uploadingText: `Enviando... ${progress}% ${progress == 100 ? " - Aguardando Processamento do Upload" : ""}`, 
+          uploading: true 
+        })
+      })
+      
+      if (video && video.status !== VIDEO_STATUS_ERROR) {
         this.setState({
-          videos: [
-            video,
-            ...this.state.videos
-          ],
+          videos: [video, ...this.state.videos],
           uploadingText: "Envie seu vídeo",
           uploading: false
         }, () => {
           let statusPolling = setInterval(() => {
-              vds.getVideoUrl(video.id).then(response => {
-                if (response && (response.status === "finished" || response.status === "error" || response.status === "failed" || response.status === "cancelled")) {
-                  clearInterval(statusPolling)
-                  let currStateVideos = this.state.videos
-                  currStateVideos = currStateVideos.filter(a => a.id != response.id)
-                  currStateVideos.unshift(response)
-                  this.setState({ videos: currStateVideos })
-                }
-              })
-            }, 1000)
+            vds.getVideoUrl(video.id).then(response => {
+              if (response && VIDEO_STATUS_MEANS_DONE.indexOf(response.status) >= 0) {
+                clearInterval(statusPolling)
+                const currStateVideos = this.state.videos.filter(a => a.id != response.id)
+                this.setState({ videos: currStateVideos })
+                currStateVideos.unshift(response)
+                this.setState({ videos: currStateVideos })
+              }
+            })
+          }, 1000)
         })
-      } else {
+      } else
         alert(video.message)
-      }
     }
   }
 
@@ -68,8 +73,8 @@ class App extends React.Component<{}, { loadingVideos: boolean | undefined, uplo
   async componentDidMount() {
     try {
       this.setState({ loadingVideos: true })
-      let vds = this.servicesFactory.Instance(VideoService)
-      let videos = await vds.getVideos()
+      const vds = this.servicesFactory.Instance(VideoService)
+      const videos = await vds.getVideos()
       this.setState({ videos: videos, loadingVideos: false })
     } catch (e) {
       this.setState({ loadingVideos: undefined })
@@ -99,10 +104,10 @@ class App extends React.Component<{}, { loadingVideos: boolean | undefined, uplo
             {this.state.videos.length > 0 && <Videos videos={this.state.videos} />}
           </Container>
         } />
-        <Route exact={true} path="/watch/:id" render={(props) => <Watcher {...props} vds={this.servicesFactory.Instance(VideoService)} ></Watcher>} />
+        <Route exact={true} path="/watch/:id" render={(props) => <Watcher {...props} vds={this.servicesFactory.Instance(VideoService)} />} />
       </div>
-    );
+    )
   }
 }
 
-export default App;
+export default App

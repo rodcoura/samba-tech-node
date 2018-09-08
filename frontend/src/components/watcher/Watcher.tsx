@@ -1,9 +1,8 @@
 import * as React from "react";
 import { Container, Progress } from "reactstrap";
-import { VideoService } from "../../services/VideoService";
-import { Video } from "../../model/Video";
+import { WatcherComponentProps, WatcherComponentState } from "../../interfaces/WatcherComponent";
 
-class Watcher extends React.Component<{ match: any, vds: VideoService }, { loadingVideo: boolean, video?: Video, exists: boolean }> {
+class Watcher extends React.Component<WatcherComponentProps, WatcherComponentState> {
   constructor(props: any) {
     super(props)
 
@@ -20,7 +19,7 @@ class Watcher extends React.Component<{ match: any, vds: VideoService }, { loadi
     try {
       this.setState({ loadingVideo: true })
       let video = await vds.getVideoUrl(match.params.id)
-      if(!video.error)
+      if (!video.error)
         this.setState({ video: video, loadingVideo: false, exists: true })
       else
         this.setState({ exists: false })
@@ -42,14 +41,12 @@ class Watcher extends React.Component<{ match: any, vds: VideoService }, { loadi
           }
         </Container>
       )
-
-      return (
-        <Container className="mt-4">
-          <p>O vídeo solicitado não existe!</p>
-        </Container>
-      )
+    return (
+      <Container className="mt-4">
+        <p>O vídeo solicitado não existe!</p>
+      </Container>
+    )
   }
-
 }
 
 export default Watcher

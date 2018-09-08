@@ -1,12 +1,12 @@
 import axios from 'axios';
-import { Video } from '../model/Video';
+import { Video } from '../interfaces/Video';
 
 export class VideoService {
 
   public async getVideoUrl(id: string): Promise<Video> {
     return new Promise<Video>((resolve, reject) => {
       axios.get<Video>(`${window['API']}video/${id}`).then(response => {
-        if (response.status === 200)
+        if (response.data)
           resolve(response.data)
         else
           reject(response.statusText)
@@ -17,7 +17,7 @@ export class VideoService {
   public async getVideos(): Promise<Video[]> {
     return new Promise<Video[]>((resolve, reject) => {
       axios.get<Video[]>(`${window['API']}videos`).then(response => {
-        if (response.status === 200)
+        if (response.data)
           resolve(response.data)
         else
           reject(response.statusText)
@@ -33,7 +33,7 @@ export class VideoService {
             progressCallback(Math.round((event.loaded * 100) / event.total))
         }
       }).then(response => {
-        if (response.status === 200)
+        if (response.data)
           resolve(response.data)
         else
           reject(response.statusText)
