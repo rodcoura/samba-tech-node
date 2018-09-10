@@ -8,7 +8,7 @@
     "start": "node build/app.js",
     "test": "mocha --reporter spec --compilers ts:ts-node/register 'test/**/*.test.ts'",
     "watch": "gulp default",
-    "build": "gulp scripts assets"
+    "build": "gulp compile"
   },
   "author": "rodrigo coura",
   "license": "ISC",
